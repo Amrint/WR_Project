@@ -1,39 +1,44 @@
 import streamlit as st
 import pickle
-import numpy as np
+import pandas as pd
 
-# Load the trained model and vectorizer
-with open('best_model.pkl', 'rb') as model_file, open('best_vectorizer.pkl', 'rb') as vec_file:
-    model = pickle.load(model_file)
-    vectorizer = pickle.load(vec_file)
+# Title and Description
+st.title("Sentiment Analysis App")
+st.write("Analyze sentiment as Positive, Negative, or Neutral.")
 
-# Title of the Streamlit app
-st.title("Sentiment Analysis Web App")
-st.write("Predict the sentiment of your text: Positive, Negative, or Neutral.")
+# Load Model and Vectorizer with Error Handling
+@st.cache_resource
+def load_model_and_vectorizer():
+    try:
+        with open('best_model.pkl', 'rb') as model_file:
+            model = pickle.load(model_file)
+        with open('best_vectorizer.pkl', 'rb') as vectorizer_file:
+            vectorizer = pickle.load(vectorizer_file)
+        return model, vectorizer
+    except FileNotFoundError as e:
+        st.error("Model or vectorizer file not found. Please upload `best_model.pkl` and `best_vectorizer.pkl` to the same directory as `app.py`.")
+        st.stop()
+    except Exception as e:
+        st.error(f"An error occurred while loading the model or vectorizer: {str(e)}")
+        st.stop()
 
-# Input text box
-user_input = st.text_area("Enter your text here:")
+# Load the resources
+model, vectorizer = load_model_and_vectorizer()
 
-# Prediction
-if st.button("Predict Sentiment"):
-    if user_input.strip():
-        # Preprocess and vectorize input
-        input_vectorized = vectorizer.transform([user_input])
-        
-        # Predict sentiment
-        prediction = model.predict(input_vectorized)
-        prediction_proba = model.predict_proba(input_vectorized)
+# Input Text
+text_input = st.text_area("Enter text to analyze sentiment:")
 
-        # Display the result
-        st.subheader("Prediction:")
-        st.write(f"The sentiment is **{prediction[0].capitalize()}**.")
-
-        st.subheader("Confidence:")
-        for sentiment, prob in zip(model.classes_, prediction_proba[0]):
-            st.write(f"{sentiment.capitalize()}: {prob * 100:.2f}%")
+if st.button("Analyze"):
+    if text_input.strip() == "":
+        st.warning("Please enter some text to analyze.")
     else:
-        st.error("Please enter some text to analyze.")
-
-# Footer
-st.markdown("---")
-st.markdown("Developed with ❤️ using Streamlit")
+        # Preprocessing the input
+        text_input_cleaned = " ".join(text_input.lower().split())  # Basic cleaning for this example
+        
+        # Transform the input
+        try:
+            text_vectorized = vectorizer.transform([text_input_cleaned])
+            prediction = model.predict(text_vectorized)[0]
+            st.success(f"Predicted Sentiment: **{prediction.capitalize()}**")
+        except Exception as e:
+            st.error(f"An error occurred during prediction: {str(e)}")
